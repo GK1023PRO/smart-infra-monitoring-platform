@@ -1,5 +1,3 @@
-version: "3.9"
-
 # =============================================================
 # Smart Infrastructure Monitoring Platform
 # Services: monitor | exporter | prometheus | grafana | n8n
@@ -24,7 +22,9 @@ services:
       dockerfile: docker/Dockerfile.monitor
     container_name: monitor
     restart: unless-stopped
-    env_file: ./.env
+    env_file:
+      - path: ./.env
+      - required: false
     volumes:
       - metrics-data:/data
       - ./logs:/app/logs
@@ -93,6 +93,9 @@ services:
     restart: unless-stopped
     ports:
       - "5678:5678"
+    env_file:
+      - path: ./.env
+      - required: false
     environment:
       - TELEGRAM_CHAT_ID=5053917778
       - TELEGRAM_BOT_TOKEN=8808032885:AAFMTFZzwNVbgRTyMK2vPJJ_hBRwJzH67WU
