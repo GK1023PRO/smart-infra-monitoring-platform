@@ -71,11 +71,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build monitor image
-        run: docker build -f docker/Dockerfile.monitor -t smart-infra-monitor:ci .
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.monitor
+          push: false
+          tags: smart-infra-monitor:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build exporter image
-        run: docker build -f docker/Dockerfile.exporter -t smart-infra-exporter:ci .
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.exporter
+          push: false
+          tags: smart-infra-exporter:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Validate compose config
         run: docker compose config --quiet && echo "✅ docker-compose config valid"
