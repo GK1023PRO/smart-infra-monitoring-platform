@@ -1,0 +1,103 @@
+{
+  "name": "Hourly Summary Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://prometheus:9090/api/v1/query",
+        "options": {},
+        "qs": {
+          "parameters": [
+            { "name": "query", "value": "system_cpu_usage_percent" }
+          ]
+        }
+      },
+      "id": "fetch-cpu",
+      "name": "Get CPU",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://prometheus:9090/api/v1/query",
+        "options": {},
+        "qs": {
+          "parameters": [
+            { "name": "query", "value": "system_mem_usage_percent" }
+          ]
+        }
+      },
+      "id": "fetch-mem",
+      "name": "Get Memory",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 340]
+    },
+    {
+      "parameters": {
+        "url": "http://prometheus:9090/api/v1/query",
+        "options": {},
+        "qs": {
+          "parameters": [
+            { "name": "query", "value": "system_disk_usage_percent" }
+          ]
+        }
+      },
+      "id": "fetch-disk",
+      "name": "Get Disk",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 480]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "={{ '📊 Hourly System Report\\n🕐 ' + new Date().toISOString().replace('T',' ').substring(0,19) + '\\n\\n🖥 CPU: ' + ($node[\"Get CPU\"].json.data.result[0]?.value[1] || 'N/A') + '%\\n💾 MEM: ' + ($node[\"Get Memory\"].json.data.result[0]?.value[1] || 'N/A') + '%\\n💿 DISK: ' + ($node[\"Get Disk\"].json.data.result[0]?.value[1] || 'N/A') + '%' }}",
+        "additionalFields": {}
+      },
+      "id": "send-report",
+      "name": "Send Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [700, 340],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-cred",
+          "name": "Telegram Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          { "node": "Get CPU", "type": "main", "index": 0 },
+          { "node": "Get Memory", "type": "main", "index": 0 },
+          { "node": "Get Disk", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Disk": {
+      "main": [
+        [{ "node": "Send Report", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1",
+  "tags": [{ "name": "monitoring" }, { "name": "reporting" }]
+}

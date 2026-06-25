@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "Smart Infra Monitor"
+    orgId: 1
+    folder: "Smart Infra"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards

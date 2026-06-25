@@ -1,0 +1,27 @@
+FROM ubuntu:24.04
+
+LABEL maintainer="DevOps Engineer"
+LABEL description="Smart Infrastructure Monitor - bash metrics collector"
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    curl \
+    jq \
+    bc \
+    procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy monitor scripts
+COPY monitor/ ./monitor/
+
+# Make executable
+RUN chmod +x /app/monitor/monitor.sh
+
+# Create output directories
+RUN mkdir -p /app/logs /app/json /data
+
+CMD ["/app/monitor/monitor.sh"]

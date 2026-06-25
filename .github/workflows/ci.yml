@@ -1,0 +1,81 @@
+name: CI — Lint & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  shellcheck:
+    name: ShellCheck — Lint bash scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Lint monitor.sh
+        run: shellcheck -e SC1091 monitor/monitor.sh
+
+      - name: Lint test scripts
+        run: shellcheck -e SC1091 tests/test_thresholds.sh
+
+  unit-tests:
+    name: Unit Tests — Threshold logic
+    runs-on: ubuntu-latest
+    needs: shellcheck
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bc (required by tests)
+        run: sudo apt-get install -y bc
+
+      - name: Run threshold tests
+        run: |
+          chmod +x tests/test_thresholds.sh
+          bash tests/test_thresholds.sh
+
+  validate-configs:
+    name: Validate YAML & JSON configs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq & jq
+        run: sudo apt-get install -y jq python3-pip && pip3 install pyyaml --break-system-packages
+
+      - name: Validate docker-compose.yml
+        run: python3 -c "import yaml,sys; yaml.safe_load(open('docker-compose.yml'))" && echo "✅ docker-compose.yml valid"
+
+      - name: Validate prometheus.yml
+        run: python3 -c "import yaml,sys; yaml.safe_load(open('prometheus/prometheus.yml'))" && echo "✅ prometheus.yml valid"
+
+      - name: Validate alert rules
+        run: python3 -c "import yaml,sys; yaml.safe_load(open('prometheus/alert.rules.yml'))" && echo "✅ alert.rules.yml valid"
+
+      - name: Validate Grafana dashboard JSON
+        run: jq . grafana/dashboards/infra-dashboard.json > /dev/null && echo "✅ infra-dashboard.json valid"
+
+      - name: Validate n8n workflow JSONs
+        run: |
+          for f in n8n/workflows/*.json; do
+            jq . "$f" > /dev/null && echo "✅ $f valid"
+          done
+
+  docker-build:
+    name: Docker — Build images
+    runs-on: ubuntu-latest
+    needs: [shellcheck, unit-tests, validate-configs]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build monitor image
+        run: docker build -f docker/Dockerfile.monitor -t smart-infra-monitor:ci .
+
+      - name: Build exporter image
+        run: docker build -f docker/Dockerfile.exporter -t smart-infra-exporter:ci .
+
+      - name: Validate compose config
+        run: docker compose config --quiet && echo "✅ docker-compose config valid"

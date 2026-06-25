@@ -1,0 +1,54 @@
+groups:
+  - name: system_alerts
+    interval: 30s
+    rules:
+
+      - alert: HighCPU
+        expr: system_cpu_usage_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+          action: investigate-only
+        annotations:
+          summary: "High CPU on {{ $labels.host }}"
+          description: "CPU is {{ $value }}% (threshold: 90%)"
+
+      - alert: HighMemory
+        expr: system_mem_usage_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+          action: investigate-only
+        annotations:
+          summary: "High Memory on {{ $labels.host }}"
+          description: "Memory is {{ $value }}% (threshold: 90%)"
+
+      - alert: HighDisk
+        expr: system_disk_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          action: investigate-only
+        annotations:
+          summary: "High Disk Usage on {{ $labels.host }}"
+          description: "Disk is {{ $value }}% (threshold: 90%)"
+
+      - alert: HighLoad
+        expr: system_load_average > 4.0
+        for: 2m
+        labels:
+          severity: critical
+          action: investigate-only
+        annotations:
+          summary: "High Load Average on {{ $labels.host }}"
+          description: "Load average is {{ $value }} (threshold: 4.0)"
+
+      - alert: MonitorDown
+        expr: monitor_exporter_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          action: investigate-only
+        annotations:
+          summary: "Monitor exporter is down"
+          description: "The metrics exporter has not responded for 1 minute"

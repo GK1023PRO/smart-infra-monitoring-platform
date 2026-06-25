@@ -1,0 +1,31 @@
+# Environment & secrets — NEVER commit these
+.env
+*.env.local
+
+# Runtime output directories
+logs/
+json/
+screenshots/
+
+# Prometheus data
+prometheus-data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Node / n8n local
+node_modules/

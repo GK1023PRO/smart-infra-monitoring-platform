@@ -1,0 +1,111 @@
+version: "3.9"
+
+# =============================================================
+# Smart Infrastructure Monitoring Platform
+# Services: monitor | exporter | prometheus | grafana | n8n
+# =============================================================
+
+volumes:
+  metrics-data:        # shared between monitor (writer) and exporter (reader)
+  prometheus-data:
+  grafana-data:
+  n8n-data:
+
+networks:
+  monitor-net:
+    driver: bridge
+
+services:
+
+  # ── 1. Monitor (bash script) ───────────────────────────────
+  monitor:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.monitor
+    container_name: monitor
+    restart: unless-stopped
+    env_file: ./.env
+    volumes:
+      - metrics-data:/data
+      - ./logs:/app/logs
+      - ./json:/app/json
+    networks:
+      - monitor-net
+    depends_on:
+      - n8n
+
+  # ── 2. Metrics Exporter (Python HTTP → Prometheus) ─────────
+  exporter:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.exporter
+    container_name: exporter
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    volumes:
+      - metrics-data:/data:ro
+    networks:
+      - monitor-net
+
+  # ── 3. Prometheus ──────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-15d}"
+      - "--web.enable-lifecycle"
+    networks:
+      - monitor-net
+
+  # ── 4. Grafana ─────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/dashboards/infra-dashboard.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - monitor-net
+    depends_on:
+      - prometheus
+
+  # ── 5. n8n Automation Hub ──────────────────────────────────
+  n8n:
+    image: n8nio/n8n:1.45.1
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - TELEGRAM_CHAT_ID=5053917778
+      - TELEGRAM_BOT_TOKEN=8808032885:AAFMTFZzwNVbgRTyMK2vPJJ_hBRwJzH67WU
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme123}
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      
+      
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks:
+      - monitor-net

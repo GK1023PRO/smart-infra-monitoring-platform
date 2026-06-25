@@ -1,0 +1,119 @@
+{
+  "name": "Alert Intake - Monitor Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "monitor-alert",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "monitor-alert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"overall_status\"]}}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-status",
+      "name": "Has Alert Status?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "={{ '🚨 ' + $json.overall_status + ' — ' + $json.host + '\\n\\n' + '🖥 CPU: ' + $json.metrics.cpu.value + '%  (' + $json.metrics.cpu.severity + ')\\n' + '💾 MEM: ' + $json.metrics.mem.value + '%  (' + $json.metrics.mem.severity + ')\\n' + '💿 DISK: ' + $json.metrics.disk.value + '%  (' + $json.metrics.disk.severity + ')\\n' + '📊 LOAD: ' + $json.metrics.load.value + '  (' + $json.metrics.load.severity + ')\\n\\n' + '🕐 ' + $json.timestamp }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-node",
+      "name": "Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [700, 180],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram-cred",
+          "name": "Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "monitor@yourdomain.com",
+        "toEmail": "={{$env.EMAIL_TO}}",
+        "subject": "={{ '🚨 [' + $json.overall_status + '] Infrastructure Alert - ' + $json.host }}",
+        "text": "={{ 'SYSTEM ALERT\\n\\nHost: ' + $json.host + '\\nStatus: ' + $json.overall_status + '\\nTime: ' + $json.timestamp + '\\n\\nMetrics:\\nCPU: ' + $json.metrics.cpu.value + '% (' + $json.metrics.cpu.severity + ')\\nMEM: ' + $json.metrics.mem.value + '% (' + $json.metrics.mem.severity + ')\\nDISK: ' + $json.metrics.disk.value + '% (' + $json.metrics.disk.severity + ')\\nLOAD: ' + $json.metrics.load.value + ' (' + $json.metrics.load.severity + ')' }}"
+      },
+      "id": "email-node",
+      "name": "Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [700, 300],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-cred",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$env.DISCORD_WEBHOOK_URL}}",
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ '🚨 **' + $json.overall_status + '** — `' + $json.host + '`\\n> CPU: **' + $json.metrics.cpu.value + '%** | MEM: **' + $json.metrics.mem.value + '%** | DISK: **' + $json.metrics.disk.value + '%** | LOAD: **' + $json.metrics.load.value + '**\\n> ' + $json.timestamp }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        }
+      },
+      "id": "discord-node",
+      "name": "Discord Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [700, 420]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Has Alert Status?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Alert Status?": {
+      "main": [
+        [
+          { "node": "Telegram Alert", "type": "main", "index": 0 },
+          { "node": "Email Alert", "type": "main", "index": 0 },
+          { "node": "Discord Alert", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1",
+  "meta": { "templateCredsSetupCompleted": false },
+  "tags": [{ "name": "monitoring" }]
+}
